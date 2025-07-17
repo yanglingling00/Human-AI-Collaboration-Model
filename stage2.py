@@ -9,7 +9,7 @@ import torch.backends.cudnn as cudnn
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
 
-# 参数
+# Parameters
 device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 train_size = 0.7
 valid_size = 0.1
@@ -27,7 +27,6 @@ class ensemble_model(nn.Module):
         self.output_size = output_size
         self.relu = nn.ReLU()
 
-        # 网络结构
         self.fc1 = nn.Linear(input_size, hidden_size * 3)
         self.fc2 = nn.Linear(hidden_size * 3, hidden_size * 2)
         self.fc3 = nn.Linear(hidden_size * 2, hidden_size)
@@ -60,7 +59,7 @@ class Net(nn.Module):
         self.output_size = output_size
         self.relu = nn.ReLU()
         self.device = device
-        # 网络结构
+
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
         self.fc1 = nn.Linear(hidden_size, hidden_size // 2)
         self.fc2 = nn.Linear(hidden_size // 2, hidden_size // 4)
@@ -85,45 +84,32 @@ class Net(nn.Module):
         out = self.activation(out)
         return out
 
-
-# 定义GetLoader类，继承Dataset方法，并重写__getitem__()和__len__()方法
 class MyDataset(torch.utils.data.Dataset):
-    # 初始化函数，得到数据
     def __init__(self, feature, human_pre, data_label):
         self.feature = feature
         self.human_pre = human_pre
         self.label = data_label
 
-    # index是根据batchsize划分数据后得到的索引，最后将data和对应的labels进行一起返回
     def __getitem__(self, index):
         feature = self.feature[index]
         human_pre = self.human_pre[index]
         labels = self.label[index]
         return feature, human_pre, labels
-
-    # 该函数返回数据大小长度，目的是DataLoader方便划分，如果不知道大小，DataLoader会报错
+        
     def __len__(self):
         return len(self.feature)
 
-
 def adjust_shape(dataSet, seq):
-    """
-    :param dataSet: 数据集
-    :param seq: 滑动窗口大小
-    :return: 调整形状后的数据
-    """
     dataSet_x = dataSet[:, :-1]
     dataSet_y = dataSet[:, -1]
-    # 创建两个列表，用来存储数据的特征和标签
+    # Features and Labels
     data_feat, data_target = [], []
 
-    # 设每条数据序列有seq组数据
+    # Each data sequence contains seq groups of data
     for index in range(len(dataSet) - seq):
-        # 构建特征集
         data_feat.append(dataSet_x[index:index + seq])
-        # 构建target集
         data_target.append(dataSet_y[index + seq - 1])
-    # 将特征集和标签集整理成numpy数组
+
     data_feat = np.array(data_feat, dtype='float64')
     data_target = np.array(data_target, dtype='float64')
     return data_feat, data_target
@@ -148,7 +134,6 @@ class synthetic_expert():
                 outs[i] = abs(labels[i] - 1)
         return outs
 
-
 class early_stop():
     def __init__(self, EARLY_STOP_EPOCH):
         self.best_model = 0
@@ -160,7 +145,7 @@ class early_stop():
             self.min_loss = new_loss
             self.best_model = model
             torch.save(self.best_model, f'best_dense_model_{seq}_{seq_index}.pth')
-        # 保存新的loss
+
         self.loss_list = self.loss_list[1:]
         self.loss_list.append(new_loss)
         if min(self.loss_list) > self.min_loss:
@@ -180,7 +165,6 @@ def softamax_loss(outputs, m, labels, m2, n_classes):
     outputs = (-m) * torch.log2(outputs[range(batch_size), rc]) - (m2) * torch.log2(
         outputs[range(batch_size), labels.long()])
     return torch.sum(outputs) / batch_size
-
 
 def metrics_print(model, expert, num_classes, loader, logger):
     up_total = 0
@@ -205,7 +189,7 @@ def metrics_print(model, expert, num_classes, loader, logger):
             exp_prediction = human.to(device)
             for i in range(0, batch_size):
 
-                # 计算是否defer
+                # Calculate whether to defer
                 r = (predicted[i].item() == num_classes)
                 sys_pre = -1
                 if r == 0:
@@ -219,7 +203,7 @@ def metrics_print(model, expert, num_classes, loader, logger):
                     sys_pre = exp_prediction[i]
                     exp_total += 1
                 total += 1
-                # 计算up、down
+                # Calculate the up and down probabilities
                 if labels[i] == 1:
                     up_total += 1
                     up_correct += (sys_pre == labels[i]).item()
@@ -235,10 +219,9 @@ def metrics_print(model, expert, num_classes, loader, logger):
     logger.info(to_print)
     return 100 * correct_sys / total
 
-
 def get_data(period, currency, time_frame, SEQ):
     """
-    将数据封装为dataloader
+   Encapsulate the data
     """
     file = f"period_{period}_GMT_{currency}_{time_frame}.xlsx"
     dataSet = pd.read_excel(file)
@@ -246,22 +229,21 @@ def get_data(period, currency, time_frame, SEQ):
     data_after_close = dataSet.iloc[:, close_index:]
     dataSet = data_after_close.values
 
-    # 划分数据集 取得特征最大值最小值
+    # Divide the dataset
     split_idx_1 = int(len(dataSet) * train_size)  # Calculate the index to split the data
     split_idx_2 = int(len(dataSet) * (train_size + valid_size))  # Calculate the index to split the data
     train_data = dataSet[:split_idx_1]
     min_list = train_data[:, :-1].min(axis=0)
     max_list = train_data[:, :-1].max(axis=0)
-    # 归一化
+    # Normalization
     dataSet[:, :-1] = (dataSet[:, :-1] - min_list) / (max_list - min_list)
-    # 输入纬度
+
     input_size = dataSet.shape[1] - 1
-    # 获取特征与标签
     data_feat, data_target = adjust_shape(dataSet, SEQ)
 
     data_human = pd.read_csv('human_pre.csv').values
     data_human = data_human.flatten()
-    # 构建时间窗口
+    # Build a time window
     trainX = torch.from_numpy(data_feat[:split_idx_1].reshape(-1, SEQ, input_size)).type(torch.Tensor)
     validX = torch.from_numpy(data_feat[split_idx_1:split_idx_2].reshape(-1, SEQ, input_size)).type(torch.Tensor)
     testX = torch.from_numpy(data_feat[split_idx_2:].reshape(-1, SEQ, input_size)).type(torch.Tensor)
@@ -271,7 +253,7 @@ def get_data(period, currency, time_frame, SEQ):
     trainY = torch.tensor(data_target[:split_idx_1], dtype=int)
     validY = torch.tensor(data_target[split_idx_1:split_idx_2], dtype=int)
     testY = torch.tensor(data_target[split_idx_2:], dtype=int)
-    # 将给定的tensor数据包装成dataset
+
     train = MyDataset(trainX, train_human, trainY)
     valid = MyDataset(validX, valid_human, validY)
     test = MyDataset(testX, test_human, testY)
@@ -286,20 +268,17 @@ def get_data(period, currency, time_frame, SEQ):
                                               shuffle=False, drop_last=True)
     return train_loader, valid_loader, test_loader
 
-
 def get_new_loader(loader, short_model, middle_model, long_model):
-    # 进行infer 获取预测logits组合为新的数据
-    # 加载不同model
-
+    # infer to obtain the predicted logits combination as new data
+    # Load different models
     short_model.eval()
     middle_model.eval()
     long_model.eval()
-    # 总model
-    # 使用train valid集成
+
     new_input = None
     new_human = None
     new_target = None
-    # 构建stage2的数据
+    # Build the data for stage2
     with torch.no_grad():
         for short_data, middle_data, long_data in loader:
 
@@ -311,12 +290,12 @@ def get_new_loader(loader, short_model, middle_model, long_model):
             middle_batch_input, middle_batch_target = middle_batch_input.to(device), middle_batch_target.to(device)
             long_batch_input, long_batch_target = long_batch_input.to(device), long_batch_target.to(device)
 
-            # 获取三个周期的预测结果 # [Batch_size,num_classes+1]
-            short_batch_output = short_model(short_batch_input)[:, -1, :]  # 获取窗口的最后一位预测值
-            middle_batch_output = middle_model(middle_batch_input)[:, -1, :]  # 获取窗口的最后一位预测值
-            long_batch_output = long_model(long_batch_input)[:, -1, :]  # 获取窗口的最后一位预测值
+            # Obtain the prediction results of the three periods and get the last predicted value of the window
+            short_batch_output = short_model(short_batch_input)[:, -1, :]  # [Batch_size,num_classes+1]
+            middle_batch_output = middle_model(middle_batch_input)[:, -1, :]  # [Batch_size,num_classes+1]
+            long_batch_output = long_model(long_batch_input)[:, -1, :]  # [Batch_size,num_classes+1]
 
-            # 合并  计算熵/
+            # Combined calculation entropy
             merge_output = torch.cat((short_batch_output, middle_batch_output, long_batch_output), dim=1)
             if new_input is None:
                 new_input = merge_output
@@ -339,11 +318,9 @@ def get_new_loader(loader, short_model, middle_model, long_model):
                                               shuffle=False, drop_last=True)
     return data_loader
 
-
 def temp_test(model, expert, loader, logger):
     model.eval()
     metrics_print(model, expert, num_classes, loader, logger)
-
 
 def run_stage_2(currency, time_frame, short_seq, short_index, m_seq, m_index, l_seq, l_index, human_ability,
                 EARLY_STOP_EPOCH, alpha, indexs):
@@ -360,15 +337,13 @@ def run_stage_2(currency, time_frame, short_seq, short_index, m_seq, m_index, l_
     middle_model = torch.load(f'best_model_period_12_{m_seq}_{m_index}.pth')
     long_model = torch.load(f'best_model_period_24_{l_seq}_{l_index}.pth')
 
-    # 记录输出
     logger = logging.getLogger(f'logger_stage')
 
-    # 移除处理器
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
 
     logger.setLevel(logging.INFO)
-    # 配置logging
+
     handler = logging.FileHandler(f'stage2_output.txt')
     logger.addHandler(handler)
 
@@ -378,7 +353,7 @@ def run_stage_2(currency, time_frame, short_seq, short_index, m_seq, m_index, l_
         acc_list = []
         for seq_index in range(indexs):
             logger.info(f"---------------SEQ:{SEQ} SEQ_index:{seq_index}-------------")
-            # 获取不同阶段的datalodar
+            # Obtain data at different stages
             short_train_loader, short_valid_loader, short_test_loader = get_data(6, currency, time_frame, SEQ)
             middle_train_loader, middle_valid_loader, middle_test_loader = get_data(12, currency, time_frame, SEQ)
             long_train_loader, long_valid_loader, long_test_loader = get_data(24, currency, time_frame, SEQ)
@@ -386,24 +361,23 @@ def run_stage_2(currency, time_frame, short_seq, short_index, m_seq, m_index, l_
             valid_data_loader = zip(short_valid_loader, middle_valid_loader, long_valid_loader)
             test_data_loader = zip(short_test_loader, middle_test_loader, long_test_loader)
 
-            # 提取新的dataloader
+            # Extract the new data
             ensemble_train_loader, ensemble_valid_loader, ensemble_test_loader = get_new_loader(
                 train_data_loader, short_model, middle_model, long_model), get_new_loader(valid_data_loader,
                                                                                           short_model, middle_model,
                                                                                           long_model), get_new_loader(
                 test_data_loader, short_model, middle_model, long_model)
 
-            # 训练新的模型
+            # Train the new model
             dense_model = ensemble_model(input_size=9, hidden_size=36, output_size=num_classes + 1)
-            # 定义优化器和损失函数
-            optimizer = torch.optim.Adam(dense_model.parameters(), lr=LR)  # 使用Adam优化算法
+
+            optimizer = torch.optim.Adam(dense_model.parameters(), lr=LR) 
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, EPOCHS * train_size)
-            loss_fn = softamax_loss  # 损失函数
+            loss_fn = softamax_loss  
             Stop_early = early_stop(EARLY_STOP_EPOCH)
             dense_model = dense_model.to(device)
             cudnn.benchmark = True
 
-            # 开始训练
             # train model
             for epoch in range(1, EPOCHS + 1):
                 dense_model.train()
@@ -412,7 +386,6 @@ def run_stage_2(currency, time_frame, short_seq, short_index, m_seq, m_index, l_
                     batch_input = batch_input.to(device)
                     batch_targets = batch_targets.to(device)
 
-                    # 只获取窗口的最后一位预测值
                     y_train_pred = dense_model(batch_input)
 
                     m = batch_human.to(device)
@@ -428,14 +401,13 @@ def run_stage_2(currency, time_frame, short_seq, short_index, m_seq, m_index, l_
                     m2 = torch.tensor(m2)
                     m = m.to(device)
                     m2 = m2.to(device)
-                    # 计算损失
+
                     loss = softamax_loss(y_train_pred, m, batch_targets, m2, num_classes)
                     # Forward pass
-                    # 梯度清0，否则会随着epoch累计
+
                     optimizer.zero_grad()
-                    # 回传
                     loss.backward()
-                    # 更新参数
+                    # Update
                     optimizer.step()
                     all_loss += loss
                 if epoch % 10 == 0:
@@ -443,8 +415,8 @@ def run_stage_2(currency, time_frame, short_seq, short_index, m_seq, m_index, l_
                     logger.info(f"epoch:{epoch} loss:{all_loss / TRAIN_BATCH_SIZE}")
                     temp_test(dense_model, expert, ensemble_test_loader,logger)
 
-                # -----------------------------早停---------------------------------------------
-                # 保留在valid上损失最小的模型
+                # -----------------------------Early Stop---------------------------------------------
+                # Retain the model with the least loss on valid
                 dense_model.eval()
                 with torch.no_grad():
                     valid_loss = 0
@@ -466,7 +438,7 @@ def run_stage_2(currency, time_frame, short_seq, short_index, m_seq, m_index, l_
                         m2 = torch.tensor(m2)
                         m = m.to(device)
                         m2 = m2.to(device)
-                        # 计算损失
+
                         loss = softamax_loss(outputs, m, y, m2, num_classes)
                         valid_loss += loss
                     if Stop_early.stop_point((valid_loss / TEST_BATCH_SIZE), dense_model, SEQ, seq_index):
@@ -476,13 +448,8 @@ def run_stage_2(currency, time_frame, short_seq, short_index, m_seq, m_index, l_
                     else:
                         continue
             model = torch.load(f'best_dense_model_{SEQ}_{seq_index}.pth')
-            # 输出
+            # Output
             model.eval()
-            # res[(SEQ, seq_index)] = metrics_print(model, expert, num_classes, ensemble_test_loader, logger)
-            sys_acc = metrics_print(model, expert, num_classes, ensemble_test_loader, logger)
-            acc_list.append(sys_acc)
-            res[(SEQ, seq_index)] = sys_acc
+            res[(SEQ, seq_index)] = metrics_print(model, expert, num_classes, ensemble_test_loader, logger)
 
-    max_acc = max(acc_list)
-
-    return res, max_acc
+    return res
