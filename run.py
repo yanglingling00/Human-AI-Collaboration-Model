@@ -29,5 +29,3 @@ if __name__ == '__main__':
     # stage2
     logger.info(stage2.run_stage_2(currency, time_frame, short_seq, short_index, middle_seq, middle_index, long_seq,
                                    long_index, human_ability, 200, alpha, indexs))
-
-    logger.info(res)
