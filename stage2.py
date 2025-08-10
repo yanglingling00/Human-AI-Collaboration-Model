@@ -330,6 +330,29 @@ def get_new_loader(loader, short_model, middle_model, long_model):
                 torch.maximum(long_batch_output[:, 0], long_batch_output[:, 1]), long_batch_output[:, 2])
             long_batch_output = torch.cat([long_batch_output, h_ai_entropy.unsqueeze(1)], dim=1)
 
+            # merge
+            merge_output = torch.cat((short_batch_output, middle_batch_output, long_batch_output), dim=1)
+            if new_input is None:
+                new_input = merge_output
+            else:
+                new_input = torch.cat((new_input, merge_output), dim=0)
+
+            if new_human is None:
+                new_human = short_human
+            else:
+                new_human = torch.cat((new_human, short_human), dim=0)
+
+            if new_target is None:
+                new_target = short_batch_target
+            else:
+                new_target = torch.cat((new_target, short_batch_target), dim=0)
+
+    data_set = MyDataset(new_input, new_human, new_target)
+    data_loader = torch.utils.data.DataLoader(dataset=data_set,
+                                              batch_size=TRAIN_BATCH_SIZE,
+                                              shuffle=False, drop_last=True)
+    return data_loader
+
 def temp_test(model, expert, loader, logger):
     model.eval()
     metrics_print(model, expert, num_classes, loader, logger)
@@ -465,4 +488,5 @@ def run_stage_2(currency, time_frame, short_seq, short_index, m_seq, m_index, l_
             res[(SEQ, seq_index)] = metrics_print(model, expert, num_classes, ensemble_test_loader, logger)
 
     return res
+
 
