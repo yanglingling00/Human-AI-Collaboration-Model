@@ -268,9 +268,20 @@ def get_data(period, currency, time_frame, SEQ):
                                               shuffle=False, drop_last=True)
     return train_loader, valid_loader, test_loader
 
+def calculate_entropy(p0, p1):
+    total = p0 + p1
+    p0_normalized = p0 / total
+    p1_normalized = p1 / total
+
+    entropy = - (p0_normalized * torch.log2(p0_normalized) +
+                 p1_normalized * torch.log2(p1_normalized))
+
+    entropy = torch.nan_to_num(entropy, nan=0.0)
+    return entropy
+
+
 def get_new_loader(loader, short_model, middle_model, long_model):
-    # infer to obtain the predicted logits combination as new data
-    # Load different models
+
     short_model.eval()
     middle_model.eval()
     long_model.eval()
@@ -278,7 +289,7 @@ def get_new_loader(loader, short_model, middle_model, long_model):
     new_input = None
     new_human = None
     new_target = None
-    # Build the data for stage2
+
     with torch.no_grad():
         for short_data, middle_data, long_data in loader:
 
@@ -290,33 +301,34 @@ def get_new_loader(loader, short_model, middle_model, long_model):
             middle_batch_input, middle_batch_target = middle_batch_input.to(device), middle_batch_target.to(device)
             long_batch_input, long_batch_target = long_batch_input.to(device), long_batch_target.to(device)
 
-            # Obtain the prediction results of the three periods and get the last predicted value of the window
-            short_batch_output = short_model(short_batch_input)[:, -1, :]  # [Batch_size,num_classes+1]
-            middle_batch_output = middle_model(middle_batch_input)[:, -1, :]  # [Batch_size,num_classes+1]
-            long_batch_output = long_model(long_batch_input)[:, -1, :]  # [Batch_size,num_classes+1]
+             # [Batch_size,num_classes+1]
+            short_batch_output = short_model(short_batch_input)[:, -1, :]  
+            middle_batch_output = middle_model(middle_batch_input)[:, -1, :]  
+            long_batch_output = long_model(long_batch_input)[:, -1, :]  
 
-            # Combined calculation entropy
-            merge_output = torch.cat((short_batch_output, middle_batch_output, long_batch_output), dim=1)
-            if new_input is None:
-                new_input = merge_output
-            else:
-                new_input = torch.cat((new_input, merge_output), dim=0)
+            # short
+            machine_entropy = calculate_entropy(short_batch_output[:, 0], short_batch_output[:, 1])
+            short_batch_output = torch.cat([short_batch_output, machine_entropy.unsqueeze(1)], dim=1)
 
-            if new_human is None:
-                new_human = short_human
-            else:
-                new_human = torch.cat((new_human, short_human), dim=0)
+            h_ai_entropy = calculate_entropy(
+                torch.maximum(short_batch_output[:, 0], short_batch_output[:, 1]), short_batch_output[:, 2])
+            short_batch_output = torch.cat([short_batch_output, h_ai_entropy.unsqueeze(1)], dim=1)
 
-            if new_target is None:
-                new_target = short_batch_target
-            else:
-                new_target = torch.cat((new_target, short_batch_target), dim=0)
+            # middle  
+            machine_entropy = calculate_entropy(middle_batch_output[:, 0], middle_batch_output[:, 1])
+            middle_batch_output = torch.cat([middle_batch_output, machine_entropy.unsqueeze(1)], dim=1)
 
-    data_set = MyDataset(new_input, new_human, new_target)
-    data_loader = torch.utils.data.DataLoader(dataset=data_set,
-                                              batch_size=TRAIN_BATCH_SIZE,
-                                              shuffle=False, drop_last=True)
-    return data_loader
+            h_ai_entropy = calculate_entropy(
+                torch.maximum(middle_batch_output[:, 0], middle_batch_output[:, 1]), middle_batch_output[:, 2])
+            middle_batch_output = torch.cat([middle_batch_output, h_ai_entropy.unsqueeze(1)], dim=1)
+
+            # long
+            machine_entropy = calculate_entropy(long_batch_output[:, 0], long_batch_output[:, 1])
+            long_batch_output = torch.cat([long_batch_output, machine_entropy.unsqueeze(1)], dim=1)
+
+            h_ai_entropy = calculate_entropy(
+                torch.maximum(long_batch_output[:, 0], long_batch_output[:, 1]), long_batch_output[:, 2])
+            long_batch_output = torch.cat([long_batch_output, h_ai_entropy.unsqueeze(1)], dim=1)
 
 def temp_test(model, expert, loader, logger):
     model.eval()
@@ -453,3 +465,4 @@ def run_stage_2(currency, time_frame, short_seq, short_index, m_seq, m_index, l_
             res[(SEQ, seq_index)] = metrics_print(model, expert, num_classes, ensemble_test_loader, logger)
 
     return res
+
