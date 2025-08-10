@@ -404,7 +404,7 @@ def run_stage_2(currency, time_frame, short_seq, short_index, m_seq, m_index, l_
                 test_data_loader, short_model, middle_model, long_model)
 
             # Train the new model
-            dense_model = ensemble_model(input_size=9, hidden_size=36, output_size=num_classes + 1)
+            dense_model = ensemble_model(input_size=15, hidden_size=36, output_size=num_classes + 1)
 
             optimizer = torch.optim.Adam(dense_model.parameters(), lr=LR) 
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, EPOCHS * train_size)
@@ -488,5 +488,6 @@ def run_stage_2(currency, time_frame, short_seq, short_index, m_seq, m_index, l_
             res[(SEQ, seq_index)] = metrics_print(model, expert, num_classes, ensemble_test_loader, logger)
 
     return res
+
 
 
