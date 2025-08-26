@@ -365,7 +365,7 @@ def set_seed(seed=2023):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-def run_stage_2(currency, time_frame, short_seq, short_index, m_seq, m_index, l_seq, l_index, human_ability,
+def run_control_process(currency, time_frame, short_seq, short_index, m_seq, m_index, l_seq, l_index, human_ability,
                 EARLY_STOP_EPOCH, alpha, indexs):
     EPOCHS = 500
     LR = 1e-3
@@ -496,6 +496,7 @@ def run_stage_2(currency, time_frame, short_seq, short_index, m_seq, m_index, l_
             res[(SEQ, seq_index)] = metrics_print(model, expert, num_classes, ensemble_test_loader, logger)
 
     return res
+
 
 
 
