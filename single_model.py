@@ -188,6 +188,14 @@ def temp_test(model, expert, loader, device, logger):
     model.eval()
     metrics_print(model, expert, num_classes, loader, device, logger)
 
+def set_seed(seed=2023):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
 def run_single_model(period, currency, time_frame, human_ability, EARLY_STOP_EPOCH, alpha, indexs):
     EPOCHS = 500
     LR = 1e-3
@@ -358,3 +366,4 @@ def run_single_model(period, currency, time_frame, human_ability, EARLY_STOP_EPO
             res[(SEQ, SEQ_index)] = metrics_print(model, expert, num_classes, test_loader, device, logger)
 
     return max(res, key=res.get)
+
