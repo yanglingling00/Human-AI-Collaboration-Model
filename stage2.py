@@ -357,6 +357,14 @@ def temp_test(model, expert, loader, logger):
     model.eval()
     metrics_print(model, expert, num_classes, loader, logger)
 
+def set_seed(seed=2023):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
 def run_stage_2(currency, time_frame, short_seq, short_index, m_seq, m_index, l_seq, l_index, human_ability,
                 EARLY_STOP_EPOCH, alpha, indexs):
     EPOCHS = 500
@@ -488,6 +496,7 @@ def run_stage_2(currency, time_frame, short_seq, short_index, m_seq, m_index, l_
             res[(SEQ, seq_index)] = metrics_print(model, expert, num_classes, ensemble_test_loader, logger)
 
     return res
+
 
 
 
