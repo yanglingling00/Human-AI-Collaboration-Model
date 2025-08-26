@@ -1,5 +1,5 @@
-import single_model
-import stage2
+import monitor_process
+import control_process
 import logging
 
 if __name__ == '__main__':
@@ -12,9 +12,9 @@ if __name__ == '__main__':
     early_epoch = 20
 
     # Three single models of different dimensions
-    short_res = single_model.run_single_model(6, currency, time_frame, human_ability, early_epoch, alpha, indexs)
-    middle_res = single_model.run_single_model(12, currency, time_frame, human_ability, early_epoch, alpha, indexs)
-    long_res = single_model.run_single_model(24, currency, time_frame, human_ability, early_epoch, alpha, indexs)
+    short_res = monitor_process.run_monitor_process(6, currency, time_frame, human_ability, early_epoch, alpha, indexs)
+    middle_res = monitor_process.run_monitor_process(12, currency, time_frame, human_ability, early_epoch, alpha, indexs)
+    long_res = monitor_process.run_monitor_process(24, currency, time_frame, human_ability, early_epoch, alpha, indexs)
 
     # parameters
     short_seq, short_index = 5,1
@@ -28,8 +28,9 @@ if __name__ == '__main__':
     logger.addHandler(handler)
 
     # stage2
-    logger.info(stage2.run_stage_2(currency, time_frame, short_seq, short_index, middle_seq, middle_index, long_seq,
+    logger.info(control_process.run_control_process(currency, time_frame, short_seq, short_index, middle_seq, middle_index, long_seq,
                                    long_index, human_ability, 200, alpha, indexs))
+
 
 
 
