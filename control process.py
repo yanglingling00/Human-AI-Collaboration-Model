@@ -374,8 +374,7 @@ def run_control_process(currency, time_frame, short_seq, short_index, m_seq, m_i
     expert = synthetic_expert(human_ability, num_classes)
 
     res = {}
-    # SEQ_list = [5, 10, 15]
-    SEQ_list = [5]
+    SEQ_list = [5, 10, 15]
     short_model = torch.load(f'best_model_period_6_{short_seq}_{short_index}.pth')
     middle_model = torch.load(f'best_model_period_12_{m_seq}_{m_index}.pth')
     long_model = torch.load(f'best_model_period_24_{l_seq}_{l_index}.pth')
@@ -496,6 +495,7 @@ def run_control_process(currency, time_frame, short_seq, short_index, m_seq, m_i
             res[(SEQ, seq_index)] = metrics_print(model, expert, num_classes, ensemble_test_loader, logger)
 
     return res
+
 
 
 
