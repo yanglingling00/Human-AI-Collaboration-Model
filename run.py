@@ -3,7 +3,7 @@ import control_process
 import logging
 
 if __name__ == '__main__':
-    set_seed(2023)
+    set_seed(42)
     currency = 'USDJPY'
     time_frame = '4_Hour'
     human_ability = 0.57
@@ -30,6 +30,7 @@ if __name__ == '__main__':
     # stage2
     logger.info(control_process.run_control_process(currency, time_frame, short_seq, short_index, middle_seq, middle_index, long_seq,
                                    long_index, human_ability, 200, alpha, indexs))
+
 
 
 
