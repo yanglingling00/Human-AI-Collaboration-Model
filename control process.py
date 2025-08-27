@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import torch.nn.functional as F
 
 # Parameters
-device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 train_size = 0.7
 valid_size = 0.1
 test_size = 0.2
@@ -357,7 +357,7 @@ def temp_test(model, expert, loader, logger):
     model.eval()
     metrics_print(model, expert, num_classes, loader, logger)
 
-def set_seed(seed=2023):
+def set_seed(seed=42):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -496,6 +496,7 @@ def run_control_process(currency, time_frame, short_seq, short_index, m_seq, m_i
             res[(SEQ, seq_index)] = metrics_print(model, expert, num_classes, ensemble_test_loader, logger)
 
     return res
+
 
 
 
