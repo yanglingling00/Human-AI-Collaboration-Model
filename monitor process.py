@@ -188,7 +188,7 @@ def temp_test(model, expert, loader, device, logger):
     model.eval()
     metrics_print(model, expert, num_classes, loader, device, logger)
 
-def set_seed(seed=2023):
+def set_seed(seed=42):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -202,7 +202,7 @@ def run_monitor_process(period, currency, time_frame, human_ability, EARLY_STOP_
     TRAIN_BATCH_SIZE = 120
     TEST_BATCH_SIZE = 120
 
-    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     train_size = 0.7
     valid_size = 0.1
@@ -366,5 +366,6 @@ def run_monitor_process(period, currency, time_frame, human_ability, EARLY_STOP_
             res[(SEQ, SEQ_index)] = metrics_print(model, expert, num_classes, test_loader, device, logger)
 
     return max(res, key=res.get)
+
 
 
